@@ -1,6 +1,8 @@
 # word-chain-app
 Helps Solve NYT Letter Boxed Puzzle
 
+Run this app from https://subra-cn.github.io/word-chain-app/
+
 Project Structure
 word-chain-app/
 ├── index.html   # main HTML file with form and container elements
