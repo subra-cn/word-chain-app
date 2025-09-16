@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Word Chain Generator</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <h1>Word Chain Generator</h1>
+  <p>Enter four groups of exactly three alphabetic characters (A‑Z). Each field will be automatically converted to uppercase. After filling all four groups, click the button to generate the most economical sequence of dictionary words that uses every letter at least once.</p>
+  <form id="wordForm">
+    <div class="group-inputs">
+      <label>Group&nbsp;1:
+        <input type="text" id="group1" maxlength="3" pattern="[a-zA-Z]{3}" required />
+      </label>
+      <label>Group&nbsp;2:
+        <input type="text" id="group2" maxlength="3" pattern="[a-zA-Z]{3}" required />
+      </label>
+      <label>Group&nbsp;3:
+        <input type="text" id="group3" maxlength="3" pattern="[a-zA-Z]{3}" required />
+      </label>
+      <label>Group&nbsp;4:
+        <input type="text" id="group4" maxlength="3" pattern="[a-zA-Z]{3}" required />
+      </label>
+    </div>
+    <button type="submit" id="generateBtn">Generate Words</button>
+  </form>
+  <div id="output"></div>
+  <script src="script.js"></script>
+</body>
+</html>
