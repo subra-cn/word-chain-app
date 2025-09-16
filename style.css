@@ -66,6 +66,16 @@ button:hover {
   white-space: pre-wrap;
 }
 
+/* Style for clickable word elements */
+.word {
+  cursor: pointer;
+  text-decoration: underline;
+  color: #003a74;
+}
+.word:hover {
+  color: #002d59;
+}
+
 .error {
   color: #c00;
   font-weight: bold;

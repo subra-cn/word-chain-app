@@ -16,6 +16,13 @@
   let dictionaryLoaded = false;
   let dictionary = [];
 
+  // Global state for the current session
+  let currentGroups = [];
+  let currentCharGroupMap = {};
+  let currentCandidates = [];
+  let allLetters = new Set();
+  let currentSequence = [];
+
   const form = document.getElementById('wordForm');
   const output = document.getElementById('output');
 
@@ -110,37 +117,53 @@
   }
 
   /**
-   * Greedy algorithm to construct a sequence of words covering all letters.
+   * Prepare global state for the provided groups. This builds the
+   * character->group mapping, the set of all letters, and the list of
+   * valid candidate words sorted by coverage and length.
    * @param {string[]} groups - four group strings (uppercase)
-   * @returns {string[]} array of selected words
    */
-  function generateWordSequence(groups) {
-    const charGroupMap = buildCharGroupMap(groups);
-    const allLetters = new Set();
+  function prepareForGroups(groups) {
+    currentGroups = groups;
+    currentCharGroupMap = buildCharGroupMap(groups);
+    // Build set of all letters
+    allLetters = new Set();
     groups.forEach((grp) => {
       for (const ch of grp) allLetters.add(ch.toUpperCase());
     });
-    const candidates = buildCandidateWords(charGroupMap, 12);
-    if (candidates.length === 0) {
-      return [];
-    }
+    // Build and sort candidate words
+    currentCandidates = buildCandidateWords(currentCharGroupMap, 12);
     // Sort candidates descending by number of unique letters covered, then by length (descending)
-    candidates.sort((a, b) => {
+    currentCandidates.sort((a, b) => {
       const aCov = a.coverage.size;
       const bCov = b.coverage.size;
       if (bCov !== aCov) return bCov - aCov;
       // If equal coverage, prefer longer words
       return b.word.length - a.word.length;
     });
-    const uncovered = new Set(allLetters);
-    const usedWords = new Set();
+  }
+
+  /**
+   * Generate a sequence of words from the current global state. You can supply
+   * an initial last letter (to continue a chain), a set of letters that are
+   * still uncovered, and a set of words to avoid (used previously). If no
+   * uncovered set is provided, all letters will be considered uncovered.
+   * @param {string|null} startingLast
+   * @param {Set<string>|null} uncoveredSet
+   * @param {Set<string>|null} usedWordsSet
+   * @returns {string[]} array of words in the generated sequence
+   */
+  function generateSequenceFromState(startingLast = null, uncoveredSet = null, usedWordsSet = null) {
+    const uncovered = uncoveredSet ? new Set(uncoveredSet) : new Set(allLetters);
+    const used = usedWordsSet ? new Set(usedWordsSet) : new Set();
     const result = [];
-    let currentLast = null;
+    let currentLast = startingLast;
+    // Continue until all uncovered letters are covered or no candidate can be chosen
     while (uncovered.size > 0) {
       let chosen = null;
-      // If we already have a chain, restrict to words that start with currentLast
-      const candidateList = candidates.filter((item) => !usedWords.has(item.word) && (currentLast === null || item.first === currentLast));
-      // Try to pick one that covers as many uncovered letters as possible
+      // Restrict to words that start with currentLast if not null
+      const candidateList = currentCandidates.filter(
+        (item) => !used.has(item.word) && (currentLast === null || item.first === currentLast)
+      );
       let maxCoverage = -1;
       for (const item of candidateList) {
         let newCoverage = 0;
@@ -152,17 +175,15 @@
           chosen = item;
         }
       }
-      // If we couldn't find a covering word but have candidateList, pick the first in sorted order
+      // If no candidate covers new letters but some exist, pick the first
       if (!chosen && candidateList.length > 0) {
         chosen = candidateList[0];
       }
-      // If no word fits the current chain (candidateList empty) and we've used some words already, break to avoid infinite loop
       if (!chosen) {
         break;
       }
       result.push(chosen.word);
-      usedWords.add(chosen.word);
-      // Remove letters covered by this word from uncovered
+      used.add(chosen.word);
       chosen.coverage.forEach((ch) => uncovered.delete(ch));
       currentLast = chosen.last;
     }
@@ -190,25 +211,91 @@
       // Error message already displayed
       return;
     }
-    // Generate sequence
-    const sequence = generateWordSequence([g1, g2, g3, g4]);
-    if (sequence.length === 0) {
+    // Prepare global state for these groups
+    prepareForGroups([g1, g2, g3, g4]);
+    // Generate initial sequence
+    const seq = generateSequenceFromState(null, null, null);
+    currentSequence = seq;
+    // Render the sequence as clickable words
+    renderSequence();
+  });
+
+  /**
+   * Render the currentSequence as clickable spans in the output div.
+   */
+  function renderSequence() {
+    if (!currentSequence || currentSequence.length === 0) {
       output.innerHTML = '<span class="error">No suitable words found for these letters. Try different combinations.</span>';
-    } else {
-      output.innerHTML = `<strong>Generated Words:</strong>\n${sequence.join(', ')}`;
-      // If not all letters were covered, show which letters remain
-      const allLetters = new Set((g1 + g2 + g3 + g4).split(''));
-      const covered = new Set();
-      sequence.forEach((word) => {
-        for (const ch of word) covered.add(ch.toUpperCase());
+      return;
+    }
+    // Build HTML for sequence
+    let html = '<strong>Generated Words:</strong><br/>';
+    currentSequence.forEach((word, idx) => {
+      html += `<span class="word" data-index="${idx}">${word}</span>`;
+      if (idx < currentSequence.length - 1) {
+        html += ', ';
+      }
+    });
+    // Compute any remaining letters
+    const covered = new Set();
+    currentSequence.forEach((word) => {
+      for (const ch of word) covered.add(ch.toUpperCase());
+    });
+    const remaining = [];
+    allLetters.forEach((ch) => {
+      if (!covered.has(ch)) remaining.push(ch);
+    });
+    if (remaining.length > 0) {
+      html += `<br/><span class="error">Warning: Some letters were not used: ${remaining.join(', ')}</span>`;
+    }
+    output.innerHTML = html;
+    // Attach click listeners
+    const wordElems = output.querySelectorAll('.word');
+    wordElems.forEach((elem) => {
+      elem.addEventListener('click', (e) => {
+        const idx = parseInt(e.target.getAttribute('data-index'), 10);
+        replaceWord(idx);
       });
-      const remaining = [];
-      allLetters.forEach((ch) => {
-        if (!covered.has(ch)) remaining.push(ch);
-      });
-      if (remaining.length > 0) {
-        output.innerHTML += `\n\n<span class="error">Warning: Some letters were not used: ${remaining.join(', ')}</span>`;
+    });
+  }
+
+  /**
+   * Replace a word at a given index with an alternative and regenerate subsequent words.
+   * @param {number} index - index of the word to replace in currentSequence
+   */
+  function replaceWord(index) {
+    if (!currentSequence || index < 0 || index >= currentSequence.length) return;
+    // Compute letters covered by earlier words and used words set
+    const used = new Set();
+    const coveredBefore = new Set();
+    for (let i = 0; i < index; i++) {
+      const w = currentSequence[i];
+      used.add(w);
+      for (const ch of w) {
+        coveredBefore.add(ch.toUpperCase());
       }
     }
-  });
+    // Determine the uncovered letters for remaining part
+    const uncovered = new Set(allLetters);
+    coveredBefore.forEach((ch) => uncovered.delete(ch));
+    // Determine starting last letter (last char of previous word) if exists
+    let startingLast = null;
+    if (index > 0) {
+      const prevWord = currentSequence[index - 1];
+      startingLast = prevWord[prevWord.length - 1].toUpperCase();
+    }
+    // Mark current word as banned so it's not reused
+    used.add(currentSequence[index]);
+    // Generate new sequence from state
+    const newSubSequence = generateSequenceFromState(startingLast, uncovered, used);
+    if (newSubSequence.length === 0) {
+      // No alternative found: inform user
+      alert('No alternative word could be found for "' + currentSequence[index] + '".');
+      return;
+    }
+    // Update currentSequence by slicing up to index and concatenating new subsequence
+    currentSequence = currentSequence.slice(0, index).concat(newSubSequence);
+    // Render updated sequence
+    renderSequence();
+  }
 })();
