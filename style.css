@@ -56,6 +56,15 @@ button:hover {
   background-color: #003a74;
 }
 
+/* Reset button styling */
+#resetBtn {
+  margin-top: 0.5rem;
+  background-color: #777;
+}
+#resetBtn:hover {
+  background-color: #555;
+}
+
 #output {
   margin-top: 1.5rem;
   max-width: 600px;

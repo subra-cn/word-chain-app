@@ -23,6 +23,10 @@
   let allLetters = new Set();
   let currentSequence = [];
 
+  // Set of words that have been explicitly discarded by the user. These words
+  // will not be used in subsequent generation attempts until the user resets.
+  let discardedWords = new Set();
+
   const form = document.getElementById('wordForm');
   const output = document.getElementById('output');
 
@@ -154,7 +158,13 @@
    */
   function generateSequenceFromState(startingLast = null, uncoveredSet = null, usedWordsSet = null) {
     const uncovered = uncoveredSet ? new Set(uncoveredSet) : new Set(allLetters);
-    const used = usedWordsSet ? new Set(usedWordsSet) : new Set();
+    // Combine used words with globally discarded words to ensure none are reused
+    let used;
+    if (usedWordsSet) {
+      used = new Set([...usedWordsSet, ...discardedWords]);
+    } else {
+      used = new Set(discardedWords);
+    }
     const result = [];
     let currentLast = startingLast;
     // Continue until all uncovered letters are covered or no candidate can be chosen
@@ -220,6 +230,27 @@
     renderSequence();
   });
 
+  // Attach reset button handler
+  const resetBtn = document.getElementById('resetBtn');
+  resetBtn.addEventListener('click', resetAll);
+
+  /**
+   * Reset the application: clears discarded words, clears the current sequence,
+   * empties the input fields, and clears the output display.
+   */
+  function resetAll() {
+    // Clear group input fields
+    ['group1', 'group2', 'group3', 'group4'].forEach((id) => {
+      const el = document.getElementById(id);
+      if (el) el.value = '';
+    });
+    // Clear state
+    discardedWords.clear();
+    currentSequence = [];
+    // Clear output
+    output.innerHTML = '';
+  }
+
   /**
    * Render the currentSequence as clickable spans in the output div.
    */
@@ -284,9 +315,10 @@
       const prevWord = currentSequence[index - 1];
       startingLast = prevWord[prevWord.length - 1].toUpperCase();
     }
-    // Mark current word as banned so it's not reused
+    // Record the clicked word as discarded so it is not used again
+    discardedWords.add(currentSequence[index]);
+    // Generate new sequence from state. banned words will include both used and discarded via generateSequenceFromState.
     used.add(currentSequence[index]);
-    // Generate new sequence from state
     const newSubSequence = generateSequenceFromState(startingLast, uncovered, used);
     if (newSubSequence.length === 0) {
       // No alternative found: inform user
