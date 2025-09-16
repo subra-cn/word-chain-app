@@ -2,6 +2,8 @@
 
 This project implements a web‑based **Word Chain Generator**. Given four sets of three letters each, it finds the shortest sequence of English words (from a ~479 k word list) that collectively uses every letter at least once, respects group separation constraints, and chains each word to the next via matching last and first letters.
 
+Run this app from your browser at https://subra-cn.github.io/word-chain-app
+
 ## Features
 
 - **User‑friendly UI** – four input fields enforce uppercase, three‑letter groups and a generate button. Validation ensures input correctness.
